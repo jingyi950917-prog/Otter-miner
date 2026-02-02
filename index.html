@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水獭矿工移动版</title>
+    <title>水獭矿工移动版 - 修正版</title>
     <style>
         body { margin: 0; padding: 0; background: #2c3e50; font-family: sans-serif; touch-action: none; overflow: hidden; }
         canvas { display: block; background: #8b4513; margin: 0 auto; }
-        #info { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; pointer-events: none; }
+        #info { position: absolute; top: 10px; left: 10px; color: white; font-size: 24px; pointer-events: none; text-shadow: 2px 2px 2px #000; }
     </style>
 </head>
 <body>
@@ -28,27 +28,25 @@ let angle = 0;
 let direction = 1;
 let hookState = "swing"; 
 let hookLen = 40;
-let currentItem = null; // 当前抓到的物体
+let currentItem = null; 
 
 const originX = canvas.width / 2;
 const originY = 60;
-const baseSpeed = 8; // 基础伸缩速度
+const baseSpeed = 8; 
 
-// 矿物数据
 let items = [];
-// 1. 修改初始化逻辑：明确区分金块和石头
+
 function initItems() {
     items = [];
     for(let i=0; i<12; i++) {
         let size = Math.random() * 40 + 20;
-        let isStone = Math.random() > 0.4; // 60% 概率是石头
+        let isStone = Math.random() > 0.4; 
         items.push({
             x: Math.random() * (canvas.width - 60) + 30,
             y: Math.random() * (canvas.height - 250) + 200,
             r: size,
-            weight: size * 0.2, // 石头通常比金子重
+            weight: size * 0.25, // 稍微调重一点，增加手感
             isStone: isStone,
-            // 核心逻辑：石头分数为负，金子分为正
             val: isStone ? -Math.floor(size) : Math.floor(size * 3) 
         });
     }
@@ -61,29 +59,31 @@ function update() {
     } 
     else if (hookState === "extend") {
         hookLen += baseSpeed;
-        if (hookLen > canvas.height) hookState = "retract";
+        if (hookLen > canvas.height - 50) hookState = "retract";
         
-        // 碰撞检测
         let hX = originX + Math.sin(angle) * hookLen;
         let hY = originY + Math.cos(angle) * hookLen;
 
-        items.forEach((item, index) => {
+        for (let i = 0; i < items.length; i++) {
+            let item = items[i];
             let dx = hX - item.x;
             let dy = hY - item.y;
             if (Math.sqrt(dx*dx + dy*dy) < item.r) {
-                currentItem = items.splice(index, 1)[0];
+                currentItem = items.splice(i, 1)[0];
                 hookState = "retract";
+                break; 
             }
-        });
+        }
     } 
     else if (hookState === "retract") {
-        // 核心逻辑：速度 = 基础速度 / 重量
+        // 速度逻辑修正
         let speedReduce = currentItem ? currentItem.weight : 0;
-        hookLen -= Math.max(1, baseSpeed - speedReduce); 
+        hookLen -= Math.max(1.5, baseSpeed - speedReduce); 
 
         if (hookLen <= 40) {
             if (currentItem) {
-                score += item.val;
+                // BUG 修复点：确保使用的是 currentItem.val
+                score += currentItem.val;
                 scoreEl.innerText = score;
                 currentItem = null;
             }
@@ -91,6 +91,17 @@ function update() {
             hookState = "swing";
         }
     }
+}
+
+function drawItem(item) {
+    ctx.beginPath();
+    ctx.arc(item.x, item.y, item.r, 0, Math.PI*2);
+    ctx.fillStyle = item.isStone ? "#555555" : "#FFD700"; 
+    ctx.fill();
+    ctx.strokeStyle = item.isStone ? "#333" : "#B8860B";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.closePath();
 }
 
 function draw() {
@@ -101,9 +112,11 @@ function draw() {
     ctx.textAlign = "center";
     ctx.fillText("🦦", originX, originY);
     
-    // 绘制绳子
+    // 计算钩子末端坐标
     let hX = originX + Math.sin(angle) * hookLen;
     let hY = originY + Math.cos(angle) * hookLen;
+    
+    // 绘制绳子
     ctx.beginPath();
     ctx.moveTo(originX, originY + 10);
     ctx.lineTo(hX, hY);
@@ -111,10 +124,10 @@ function draw() {
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // 绘制钩子抓到的物体
+    // 绘制被抓取的物体
     if (currentItem) {
         currentItem.x = hX;
-        currentItem.y = hY + currentItem.r/2;
+        currentItem.y = hY + (currentItem.r * 0.5); // 让物体挂在钩子正下方
         drawItem(currentItem);
     }
 
@@ -125,26 +138,16 @@ function draw() {
     requestAnimationFrame(draw);
 }
 
-function drawItem(item) {
-    ctx.beginPath();
-    ctx.arc(item.x, item.y, item.r, 0, Math.PI*2);
-    // 石头用深灰色，金子用亮金色
-    ctx.fillStyle = item.isStone ? "#555555" : "#FFD700"; 
-    ctx.fill();
-    
-    // 给石头加点描边，增加“坚硬”感
-    ctx.strokeStyle = item.isStone ? "#333" : "#B8860B";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.closePath();
-}
-
-
-// 手机端触摸事件
+// 触摸即发
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     if (hookState === "swing") hookState = "extend";
 }, {passive: false});
+
+// 兼容电脑端的空格键测试
+window.addEventListener('keydown', (e) => {
+    if (e.code === "Space" && hookState === "swing") hookState = "extend";
+});
 
 initItems();
 draw();
