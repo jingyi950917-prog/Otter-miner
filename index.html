@@ -3,15 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>水獭矿工移动版 - 修正版</title>
+    <title>水獭矿工 3D 拟物版</title>
     <style>
-        body { margin: 0; padding: 0; background: #2c3e50; font-family: sans-serif; touch-action: none; overflow: hidden; }
-        canvas { display: block; background: #8b4513; margin: 0 auto; }
-        #info { position: absolute; top: 10px; left: 10px; color: white; font-size: 24px; pointer-events: none; text-shadow: 2px 2px 2px #000; }
+        body { margin: 0; padding: 0; background: #1a1a1a; font-family: 'PingFang SC', sans-serif; touch-action: none; overflow: hidden; }
+        /* 增加泥土质感背景 */
+        canvas { display: block; background: radial-gradient(circle, #8b4513 0%, #4d260b 100%); margin: 0 auto; }
+        #info { 
+            position: absolute; top: 20px; left: 20px; color: #f1c40f; 
+            font-size: 28px; font-weight: bold; pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
-    <div id="info">得分: <span id="score">0</span></div>
+    <div id="info">💰 得分: <span id="score">0</span></div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -19,7 +24,6 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
 
-// 屏幕适配
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
@@ -27,11 +31,11 @@ let score = 0;
 let angle = 0;
 let direction = 1;
 let hookState = "swing"; 
-let hookLen = 40;
+let hookLen = 50;
 let currentItem = null; 
 
 const originX = canvas.width / 2;
-const originY = 60;
+const originY = 70;
 const baseSpeed = 8; 
 
 let items = [];
@@ -39,13 +43,13 @@ let items = [];
 function initItems() {
     items = [];
     for(let i=0; i<12; i++) {
-        let size = Math.random() * 40 + 20;
+        let size = Math.random() * 40 + 25;
         let isStone = Math.random() > 0.4; 
         items.push({
-            x: Math.random() * (canvas.width - 60) + 30,
-            y: Math.random() * (canvas.height - 250) + 200,
+            x: Math.random() * (canvas.width - 80) + 40,
+            y: Math.random() * (canvas.height - 300) + 200,
             r: size,
-            weight: size * 0.25, // 稍微调重一点，增加手感
+            weight: isStone ? size * 0.35 : size * 0.2, // 石头显著更重
             isStone: isStone,
             val: isStone ? -Math.floor(size) : Math.floor(size * 3) 
         });
@@ -76,78 +80,84 @@ function update() {
         }
     } 
     else if (hookState === "retract") {
-        // 速度逻辑修正
         let speedReduce = currentItem ? currentItem.weight : 0;
         hookLen -= Math.max(1.5, baseSpeed - speedReduce); 
 
-        if (hookLen <= 40) {
+        if (hookLen <= 50) {
             if (currentItem) {
-                // BUG 修复点：确保使用的是 currentItem.val
                 score += currentItem.val;
                 scoreEl.innerText = score;
                 currentItem = null;
             }
-            hookLen = 40;
+            hookLen = 50;
             hookState = "swing";
         }
     }
 }
 
+// 核心改进：3D 拟物绘制
 function drawItem(item) {
-    ctx.beginPath();
-    ctx.arc(item.x, item.y, item.r, 0, Math.PI*2);
-    ctx.fillStyle = item.isStone ? "#555555" : "#FFD700"; 
-    ctx.fill();
-    ctx.strokeStyle = item.isStone ? "#333" : "#B8860B";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.closePath();
+    ctx.save();
+    // 添加阴影，模拟 3D 悬浮感
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "rgba(0,0,0,0.5)";
+    ctx.shadowOffsetY = 10;
+
+    // 绘制内容
+    ctx.font = `${item.r * 1.5}px serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    // 根据类型显示 Emoji
+    const content = item.isStone ? "🪨" : "💰";
+    ctx.fillText(content, item.x, item.y);
+    
+    ctx.restore();
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // 绘制水獭
-    ctx.font = "50px serif";
+    // 1. 绘制水獭 🦦
+    ctx.font = "60px serif";
     ctx.textAlign = "center";
     ctx.fillText("🦦", originX, originY);
     
-    // 计算钩子末端坐标
     let hX = originX + Math.sin(angle) * hookLen;
     let hY = originY + Math.cos(angle) * hookLen;
     
-    // 绘制绳子
+    // 2. 绘制 3D 拟物绳索 (使用渐变)
+    let ropeGrad = ctx.createLinearGradient(originX, originY, hX, hY);
+    ropeGrad.addColorStop(0, "#5d2906");
+    ropeGrad.addColorStop(0.5, "#d35400"); // 中间亮色，模拟高光圆柱
+    ropeGrad.addColorStop(1, "#5d2906");
+    
     ctx.beginPath();
-    ctx.moveTo(originX, originY + 10);
+    ctx.moveTo(originX, originY + 15);
     ctx.lineTo(hX, hY);
-    ctx.strokeStyle = "#e74c3c";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = ropeGrad;
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
     ctx.stroke();
 
-    // 绘制被抓取的物体
+    // 3. 绘制钩子抓到的物体
     if (currentItem) {
         currentItem.x = hX;
-        currentItem.y = hY + (currentItem.r * 0.5); // 让物体挂在钩子正下方
+        currentItem.y = hY + (currentItem.r * 0.4);
         drawItem(currentItem);
     }
 
-    // 绘制地下矿物
+    // 4. 绘制所有地下矿物
     items.forEach(drawItem);
 
     update();
     requestAnimationFrame(draw);
 }
 
-// 触摸即发
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     if (hookState === "swing") hookState = "extend";
 }, {passive: false});
-
-// 兼容电脑端的空格键测试
-window.addEventListener('keydown', (e) => {
-    if (e.code === "Space" && hookState === "swing") hookState = "extend";
-});
 
 initItems();
 draw();
