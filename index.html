@@ -52,28 +52,20 @@ const i18n = {
         sector: "Sector",
         credits: "Credits",
         story: [
-            "> INITIALIZING FINAL UPLOAD...",
-            "> MEMORY CORES: SYNCHRONIZED.",
-            "> SECTOR 10: REACHED.",
-            "> STATUS: HUMANITY RESTORED.",
-            "> SYSTEM SELF-DESTRUCTING IN 3...",
-            "> 2...",
-            "> 1...",
-            "> GOODBYE, OTTER-01."
+           
+            "✨You grabbed✨",
+            "ALL THE SHINY BITS",
+            "Yet...Your score...🤔"
         ]
     },
     zh: {
         sector: "区域",
         credits: "积分",
         story: [
-            "> 正在初始化最终上传...",
-            "> 记忆核心：同步完成。",
-            "> 第 10 区域：已到达。",
-            "> 状态：人类文明已修复。",
-            "> 系统将在 3 秒内自毁...",
-            "> 2...",
-            "> 1...",
-            "> 再见，水獭-01 号。"
+           
+            "✨亮晶晶的✨",
+            "都被你抓走了",
+            "但是...你的得分...🤔"
         ]
     }
 };
@@ -195,76 +187,22 @@ function update() {
 }
 
 function drawWinScreen() {
-    // 1. 动态的深海渐变背景
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, '#001a33'); // 深蓝色
-    gradient.addColorStop(0.5, '#003366'); // 中间蓝色
-    gradient.addColorStop(1, '#33004d'); // 紫色调
-    ctx.fillStyle = gradient;
+    ctx.fillStyle = "white";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // 2. 模拟深海气泡动画
-    // 这个动画需要在全局有一个 `bubbleTimer` 或在 requestAnimationFrame 中计算时间
-    // 这里简化为每帧绘制，每次绘制位置略有变化
-    const numBubbles = 30;
-    const bubbleSpeed = 0.5;
-    const time = Date.now() * 0.001; // 用于动画的时间基准
-
-    for (let i = 0; i < numBubbles; i++) {
-        const bubbleX = (Math.sin(time + i) * canvas.width * 0.4) + canvas.width / 2;
-        const bubbleY = (Math.cos(time * 0.5 + i) * canvas.height * 0.4) + canvas.height / 2;
-        const bubbleRadius = 5 + (Math.sin(time * 2 + i) + 1) * 5;
-        
-        ctx.beginPath();
-        ctx.arc(bubbleX, bubbleY, bubbleRadius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(100, 200, 255, ${0.1 + Math.sin(time * 0.3 + i) * 0.05})`;
-        ctx.fill();
-        ctx.strokeStyle = `rgba(200, 240, 255, ${0.3 + Math.sin(time * 0.5 + i) * 0.1})`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-    }
+    ctx.fillStyle = "#001220";
+    ctx.textAlign = "left";
+    ctx.font = "18px monospace";
     
-    // 3. 绘制核心信息：抽象搞笑可爱的一句话
+    // 使用对应语言的剧情文本
+    const messages = i18n[currentLang].story;
+    messages.forEach((msg, i) => {
+        ctx.fillText(msg, 50, 150 + i * 40);
+    });
+    
+    ctx.font = "80px serif";
     ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    const message = currentLang === 'en' ? 
-        "So... now what? You grabbed all the shiny bits." : 
-        "然后呢...？你把所有亮晶晶的都抓走了。";
-
-    // 模拟 3D 效果的文字绘制
-    const textDepth = 5; // 模拟文字的厚度
-    const textColor = 'rgba(255, 255, 255, 0.8)'; // 主色
-    const shadowColor = 'rgba(0, 0, 0, 0.5)'; // 阴影色
-    const glowColor = 'rgba(0, 243, 255, 0.7)'; // 发光色
-
-    for (let i = textDepth; i > 0; i--) {
-        ctx.font = `bold ${50 + i}px 'Segoe UI', sans-serif`;
-        ctx.fillStyle = `rgba(0,0,0, ${0.1 * i})`; // 模拟深度阴影
-        ctx.fillText(message, canvas.width / 2 + i, canvas.height / 2 + i - 60);
-    }
-    
-    // 主文字
-    ctx.font = `bold 55px 'Segoe UI', sans-serif`;
-    ctx.fillStyle = textColor;
-    ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 20; // 模拟发光
-    ctx.fillText(message, canvas.width / 2, canvas.height / 2 - 60);
-    ctx.shadowBlur = 0; // 重置阴影
-
-    // 4. 中心水獭：3D 浮动感
-    const otterSize = 120 + Math.sin(time * 0.8) * 10; // 大小呼吸动画
-    ctx.font = `${otterSize}px serif`;
-    ctx.shadowColor = 'cyan';
-    ctx.shadowBlur = 30 + Math.sin(time) * 10; // 呼吸发光
-    ctx.fillStyle = 'white'; // 使emoji更亮
-    ctx.fillText("🦦", canvas.width / 2, canvas.height / 2 + 60);
-    ctx.shadowBlur = 0;
-    
-    // 由于此函数在 requestAnimationFrame 中被循环调用，所以气泡和水獭的动画是自然的
-    requestAnimationFrame(drawWinScreen); // 确保动画继续
+    ctx.fillText("🦦", canvas.width/2, canvas.height/2 + 100);
 }
-
 
 function draw() {
     if (isWin) {
