@@ -3,35 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>深海水獭矿工 - Founder's Edition</title>
+    <title>深海水獭：全球执行矩阵</title>
     <style>
-        :root { --neon-blue: #00f3ff; }
-        body { margin: 0; padding: 0; background: #001220; font-family: 'Segoe UI', sans-serif; touch-action: none; overflow: hidden; }
+        :root { --neon-blue: #00f3ff; --neon-gold: #ffd700; }
+        body { margin: 0; padding: 0; background: #001220; font-family: 'Segoe UI', sans-serif; touch-action: none; overflow: hidden; color: white; }
         
-        #ui { 
-            position: absolute; top: 25px; left: 25px; color: var(--neon-blue); 
-            background: rgba(0, 243, 255, 0.1); padding: 15px 25px;
-            border-radius: 15px; border: 1px solid rgba(0, 243, 255, 0.3);
-            backdrop-filter: blur(10px); pointer-events: none; z-index: 10;
+        .glass-panel { background: rgba(0, 243, 255, 0.05); border: 1px solid rgba(0, 243, 255, 0.2); backdrop-filter: blur(12px); border-radius: 15px; }
+
+        /* 前置引导页 */
+        #start-screen {
+            position: absolute; inset: 0; z-index: 100;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 40px 20px; background: radial-gradient(circle at center, #002b4d 0%, #00050a 100%);
         }
-        #lang-toggle {
-            position: absolute; top: 25px; right: 25px; color: white;
-            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3);
-            padding: 8px 15px; border-radius: 8px; cursor: pointer; z-index: 20;
-            font-size: 14px; backdrop-filter: blur(5px);
+        
+        #matrix-title { font-size: 28px; font-weight: bold; color: var(--neon-blue); text-shadow: 0 0 15px var(--neon-blue); margin-bottom: 30px; }
+        .leaderboard { width: 100%; max-width: 400px; margin-bottom: 30px; }
+        .region-item { display: flex; align-items: center; padding: 12px 20px; margin-bottom: 10px; justify-content: space-between; font-size: 14px; }
+        .otter-swarm { color: #fff; font-size: 12px; opacity: 0.8; }
+
+        #btn-start {
+            padding: 15px 60px; font-size: 20px; font-weight: bold;
+            background: var(--neon-blue); color: #001220; border: none;
+            border-radius: 50px; cursor: pointer; transition: 0.3s;
+            box-shadow: 0 0 25px var(--neon-blue);
         }
-        .stat { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.8; }
-        .val { font-size: 24px; font-weight: bold; color: white; display: block; }
+
+        /* 弹幕样式 */
+        #danmaku-container {
+            position: absolute; top: 100px; width: 100%; height: 120px;
+            pointer-events: none; overflow: hidden; z-index: 5;
+        }
+        .danmaku {
+            position: absolute; white-space: nowrap; color: rgba(255, 255, 255, 0.6);
+            font-size: 14px; animation: danmaku-move 8s linear forwards;
+            text-shadow: 0 0 5px rgba(0, 243, 255, 0.5);
+        }
+        @keyframes danmaku-move {
+            from { transform: translateX(100vw); }
+            to { transform: translateX(-100%); }
+        }
+
+        /* 游戏 UI */
+        #ui { position: absolute; top: 25px; left: 25px; color: var(--neon-blue); padding: 15px 25px; pointer-events: none; z-index: 10; display: none; }
+        #lang-toggle { position: absolute; top: 25px; right: 25px; color: white; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); padding: 8px 15px; border-radius: 8px; cursor: pointer; z-index: 120; font-size: 14px; }
         canvas { display: block; margin: 0 auto; background: #001220; }
     </style>
 </head>
 <body>
     <button id="lang-toggle">English / 中文</button>
-    <div id="ui">
+    <div id="danmaku-container"></div>
+
+    <div id="start-screen">
+        <div id="matrix-title">GLOBAL EXECUTION MATRIX</div>
+        <div class="leaderboard" id="leaderboard-content"></div>
+        <div style="flex-grow: 1; position: relative; width: 100%;"></div>
+        <button id="btn-start">EXECUTE SYSTEM</button>
+    </div>
+
+    <div id="ui" class="glass-panel">
         <div class="stat" id="label-sector">Sector</div><span class="val" id="level">1</span>
         <div style="height: 10px;"></div>
         <div class="stat" id="label-credits">Credits</div><span class="val" id="score">0</span>
     </div>
+
     <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -40,29 +75,79 @@ const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
 const levelEl = document.getElementById('level');
 const langBtn = document.getElementById('lang-toggle');
+const startBtn = document.getElementById('btn-start');
+const startScreen = document.getElementById('start-screen');
+const uiPanel = document.getElementById('ui');
+const danmakuContainer = document.getElementById('danmaku-container');
 
 const i18n = {
-    en: { sector: "Sector", credits: "Credits", win: "So... now what?\nYou grabbed all the shiny bits." },
-    zh: { sector: "区域", credits: "积分", win: "然后呢...？\n你把所有亮晶晶的都抓走了。" }
+    en: { 
+        sector: "Sector", credits: "Credits", start: "EXECUTE SYSTEM", title: "GLOBAL SYNC MATRIX",
+        win: "So... now what?\nYou grabbed all the shiny bits.",
+        danmaku: ["User 8821 reached Sector 10", "China player +1200 Credits", "A Founder just went bankrupt (Bomb)", "Strategy optimized...", "Stay focused, Otter."]
+    },
+    zh: { 
+        sector: "区域", credits: "积分", start: "开始执行", title: "全球同步矩阵",
+        win: "然后呢...？\n你把所有亮晶晶的都抓走了。",
+        danmaku: ["用户 8821 已到达第 10 区域", "中国玩家获得 +1200 积分", "一名创业者刚刚因爆炸破产", "执行策略已优化...", "保持专注，水獭。"]
+    }
 };
 
-let currentLang = 'en';
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+const regionData = [
+    { name: {zh: "中国", en: "China"}, count: 12842, icons: "🦦🦦🦦🦦🦦" },
+    { name: {zh: "美国", en: "USA"}, count: 8521, icons: "🦦🦦🦦" },
+    { name: {zh: "马来西亚", en: "Malaysia"}, count: 4203, icons: "🦦🦦" },
+    { name: {zh: "加拿大", en: "Canada"}, count: 3912, icons: "🦦" }
+];
 
-let score = 0, currentLevel = 1, angle = 0, direction = 1;
-let hookState = "swing", hookLen = 60, currentItem = null, isExploding = false, isWin = false;
+let currentLang = 'en', score = 0, currentLevel = 1, angle = 0, direction = 1;
+let hookState = "swing", hookLen = 60, currentItem = null, isExploding = false, isWin = false, isPlaying = false;
 const originX = canvas.width / 2, originY = 80, baseSpeed = 10;
 let swingSpeed = 0.04, items = [];
+
+// 渲染前置排名
+function renderLeaderboard() {
+    document.getElementById('leaderboard-content').innerHTML = regionData.map(r => `
+        <div class="region-item glass-panel">
+            <span>${r.name[currentLang]}</span>
+            <span class="otter-swarm">${r.icons}</span>
+            <span style="color:var(--neon-blue)">${r.count.toLocaleString()}</span>
+        </div>
+    `).join('');
+    document.getElementById('matrix-title').innerText = i18n[currentLang].title;
+    startBtn.innerText = i18n[currentLang].start;
+}
+
+// 弹幕逻辑
+function sendDanmaku() {
+    if(!isPlaying || isWin) return;
+    const msg = i18n[currentLang].danmaku[Math.floor(Math.random() * i18n[currentLang].danmaku.length)];
+    const el = document.createElement('div');
+    el.className = 'danmaku';
+    el.innerText = msg;
+    el.style.top = Math.random() * 100 + 'px';
+    danmakuContainer.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+}
+setInterval(sendDanmaku, 3000);
 
 langBtn.addEventListener('click', () => {
     currentLang = currentLang === 'en' ? 'zh' : 'en';
     document.getElementById('label-sector').innerText = i18n[currentLang].sector;
     document.getElementById('label-credits').innerText = i18n[currentLang].credits;
+    renderLeaderboard();
+});
+
+startBtn.addEventListener('click', () => {
+    startScreen.style.display = 'none';
+    uiPanel.style.display = 'block';
+    isPlaying = true;
+    initLevel(1);
+    draw();
 });
 
 function initLevel(level) {
-    if (level >= 10) { isWin = true; document.getElementById('ui').style.display = 'none'; document.getElementById('lang-toggle').style.display = 'none'; return; }
+    if (level >= 10) { isWin = true; uiPanel.style.display = 'none'; return; }
     items = []; hookState = "swing"; hookLen = 60;
     swingSpeed = 0.035 + (level * 0.008);
     for(let i=0; i<4+Math.floor(level/2); i++) createObj("gold");
@@ -72,41 +157,31 @@ function initLevel(level) {
 
 function createObj(type) {
     items.push({
-        x: Math.random() * (canvas.width - 100) + 50,
-        y: Math.random() * (canvas.height - 350) + 250,
+        x: Math.random() * (window.innerWidth - 100) + 50,
+        y: Math.random() * (window.innerHeight - 350) + 250,
         r: type === "gold" ? 25 : (type === "stone" ? 30 : 35),
-        type: type,
-        weight: type === "stone" ? 7 : (type === "gold" ? 3 : 1),
+        type: type, weight: type === "stone" ? 7 : (type === "gold" ? 3 : 1),
         val: type === "gold" ? 100 : (type === "stone" ? -50 : 0)
     });
 }
 
 function drawWinScreen() {
     const time = Date.now() * 0.002;
-    const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, canvas.width);
-    grad.addColorStop(0, '#003366'); grad.addColorStop(1, '#00050a');
+    ctx.fillStyle = '#00050a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, canvas.width*0.8);
+    grad.addColorStop(0, `rgba(0, 243, 255, ${0.1 + Math.sin(time)*0.05})`); grad.addColorStop(1, 'transparent');
     ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    for(let i=0; i<20; i++) {
-        ctx.beginPath();
-        ctx.arc((Math.sin(time*0.5+i)*canvas.width*0.4)+canvas.width/2, (Math.cos(time*0.3+i)*canvas.height*0.4)+canvas.height/2, 5+Math.sin(time+i)*5, 0, Math.PI*2);
-        ctx.fillStyle = `rgba(0, 243, 255, 0.1)`; ctx.fill();
-    }
-
-    ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = "bold 32px 'Segoe UI'";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "bold 28px 'Segoe UI'";
     ctx.shadowBlur = 15; ctx.shadowColor = "cyan"; ctx.fillStyle = "white";
-    
     const lines = i18n[currentLang].win.split('\n');
     lines.forEach((line, i) => ctx.fillText(line, canvas.width/2, canvas.height/2 - 40 + i*50));
-    
-    ctx.font = `${120 + Math.sin(time)*10}px serif`;
-    ctx.fillText("🦦", canvas.width/2, canvas.height/2 + 120);
+    ctx.font = `${100 + Math.sin(time)*10}px serif`;
+    ctx.fillText("🦦", canvas.width/2, canvas.height/2 + 130);
     requestAnimationFrame(drawWinScreen);
 }
 
 function update() {
-    if (isWin) return;
+    if (!isPlaying || isWin) return;
     if (!items.find(i => i.type === "gold") && !currentItem && hookState === "swing") {
         currentLevel++; levelEl.innerText = currentLevel; initLevel(currentLevel); return;
     }
@@ -133,16 +208,17 @@ function update() {
 
 function draw() {
     if (isWin) { drawWinScreen(); return; }
+    if (!isPlaying) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const grad = ctx.createRadialGradient(originX, 0, 0, originX, 0, canvas.height);
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight; // 响应式适配
+    const grad = ctx.createRadialGradient(canvas.width/2, 0, 0, canvas.width/2, 0, canvas.height);
     grad.addColorStop(0, '#002b4d'); grad.addColorStop(1, '#001220');
     ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.font = "60px serif"; ctx.textAlign = "center"; ctx.fillText("🦦", originX, originY);
-    let hX = originX + Math.sin(angle) * hookLen, hY = originY + Math.cos(angle) * hookLen;
-    ctx.beginPath(); ctx.moveTo(originX, originY + 15); ctx.lineTo(hX, hY);
+    ctx.font = "60px serif"; ctx.textAlign = "center"; ctx.fillText("🦦", canvas.width/2, originY);
+    let hX = canvas.width/2 + Math.sin(angle) * hookLen, hY = originY + Math.cos(angle) * hookLen;
+    ctx.beginPath(); ctx.moveTo(canvas.width/2, originY + 15); ctx.lineTo(hX, hY);
     ctx.strokeStyle = isExploding ? "#ff3e3e" : "rgba(0, 243, 255, 0.6)"; ctx.lineWidth = 2; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
-
     ctx.save(); ctx.translate(hX, hY); ctx.rotate(-angle); ctx.font = "30px serif"; ctx.fillText("🪝", 0, 15); ctx.restore();
     if (isExploding) { ctx.font = "80px serif"; ctx.fillText("💥", hX, hY); }
     if (currentItem) { currentItem.x = hX; currentItem.y = hY + 30; drawItem(currentItem); }
@@ -157,11 +233,12 @@ function drawItem(item) {
     ctx.restore();
 }
 
-canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (hookState === "swing" && !isWin) hookState = "extend"; }, {passive: false});
-window.addEventListener('mousedown', (e) => { if (e.target.id !== 'lang-toggle' && hookState === "swing" && !isWin) hookState = "extend"; });
+window.addEventListener('mousedown', (e) => { 
+    if (e.target.id !== 'lang-toggle' && e.target.id !== 'btn-start' && hookState === "swing" && isPlaying && !isWin) hookState = "extend"; 
+});
+canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (hookState === "swing" && isPlaying && !isWin) hookState = "extend"; }, {passive: false});
 
-initLevel(currentLevel);
-draw();
+renderLeaderboard();
 </script>
 </body>
 </html>
