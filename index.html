@@ -51,13 +51,30 @@ const i18n = {
     en: {
         sector: "Sector",
         credits: "Credits",
-        story:"So... now what? You grabbed all the shiny bits."
-            
+        story: [
+            "> INITIALIZING FINAL UPLOAD...",
+            "> MEMORY CORES: SYNCHRONIZED.",
+            "> SECTOR 10: REACHED.",
+            "> STATUS: HUMANITY RESTORED.",
+            "> SYSTEM SELF-DESTRUCTING IN 3...",
+            "> 2...",
+            "> 1...",
+            "> GOODBYE, OTTER-01."
+        ]
     },
     zh: {
         sector: "区域",
         credits: "积分",
-        story: "然后呢...？你把所有亮晶晶的都抓走了。"
+        story: [
+            "> 正在初始化最终上传...",
+            "> 记忆核心：同步完成。",
+            "> 第 10 区域：已到达。",
+            "> 状态：人类文明已修复。",
+            "> 系统将在 3 秒内自毁...",
+            "> 2...",
+            "> 1...",
+            "> 再见，水獭-01 号。"
+        ]
     }
 };
 
@@ -94,7 +111,7 @@ function updateUILabels() {
 }
 
 function initLevel(level) {
-    if (level >= 2) {
+    if (level >= 10) {
         isWin = true;
         document.getElementById('ui').style.display = 'none';
         document.getElementById('lang-toggle').style.display = 'none';
@@ -210,8 +227,10 @@ function drawWinScreen() {
     // 3. 绘制核心信息：抽象搞笑可爱的一句话
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    document.getElementById('text-story').Text = i18n[currentLang].story;
-    
+
+    const message = currentLang === 'en' ? 
+        "So... now what? You grabbed all the shiny bits." : 
+        "然后呢...？你把所有亮晶晶的都抓走了。";
 
     // 模拟 3D 效果的文字绘制
     const textDepth = 5; // 模拟文字的厚度
