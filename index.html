@@ -15,6 +15,7 @@
             border-radius: 15px; border: 1px solid rgba(0, 243, 255, 0.3);
             backdrop-filter: blur(10px); pointer-events: none;
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            z-index: 10;
         }
         .stat { font-size: 14px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.8; }
         .val { font-size: 24px; font-weight: bold; color: white; display: block; }
@@ -47,6 +48,7 @@ let hookState = "swing";
 let hookLen = 60;
 let currentItem = null; 
 let isExploding = false;
+let isWin = false; // 剧情触发开关
 
 const originX = canvas.width / 2;
 const originY = 80;
@@ -56,12 +58,16 @@ const baseSpeed = 10;
 let items = [];
 
 function initLevel(level) {
+    if (level >= 10) {
+        isWin = true;
+        document.getElementById('ui').style.display = 'none'; // 隐藏UI，进入沉浸剧情
+        return;
+    }
     items = [];
     hookState = "swing";
     hookLen = 60;
     swingSpeed = 0.035 + (level * 0.008);
     
-    // 抽象分布逻辑
     let goldCount = 4 + Math.floor(level/2);
     let stoneCount = 3 + level;
     let bombCount = Math.min(level, 6);
@@ -83,7 +89,8 @@ function createObj(type) {
 }
 
 function update() {
-    // 自动过关检测
+    if (isWin) return;
+
     if (!items.find(i => i.type === "gold") && !currentItem && hookState === "swing") {
         currentLevel++;
         levelEl.innerText = currentLevel;
@@ -110,7 +117,6 @@ function update() {
                 if (item.type === "bomb") {
                     items.splice(i, 1);
                     isExploding = true;
-                    // 核心惩罚：分数清零
                     score = 0; 
                     scoreEl.innerText = score;
                     setTimeout(() => isExploding = false, 600);
@@ -140,11 +146,42 @@ function update() {
     }
 }
 
+function drawWinScreen() {
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = "#001220";
+    ctx.textAlign = "left";
+    ctx.font = "18px monospace";
+    
+    const messages = [
+        "> INITIALIZING FINAL UPLOAD...",
+        "> MEMORY CORES: SYNCHRONIZED.",
+        "> SECTOR 10: REACHED.",
+        "> STATUS: HUMANITY RESTORED.",
+        "> SYSTEM SELF-DESTRUCTING IN 3...",
+        "> 2...",
+        "> 1...",
+        "> GOODBYE, OTTER-01."
+    ];
+    
+    messages.forEach((msg, i) => {
+        ctx.fillText(msg, 50, 150 + i * 40);
+    });
+    
+    ctx.font = "80px serif";
+    ctx.textAlign = "center";
+    ctx.fillText("🦦", canvas.width/2, canvas.height/2 + 100);
+}
+
 function draw() {
-    // 渐变海洋背景
+    if (isWin) {
+        drawWinScreen();
+        return;
+    }
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // 绘制水波纹（抽象装饰）
     ctx.strokeStyle = "rgba(0, 243, 255, 0.05)";
     ctx.lineWidth = 2;
     for(let i=0; i<3; i++) {
@@ -153,7 +190,6 @@ function draw() {
         ctx.stroke();
     }
 
-    // 绘制水獭 🦦
     ctx.font = "60px serif";
     ctx.textAlign = "center";
     ctx.shadowBlur = 15;
@@ -164,17 +200,15 @@ function draw() {
     let hX = originX + Math.sin(angle) * hookLen;
     let hY = originY + Math.cos(angle) * hookLen;
 
-    // 绘制霓虹绳索
     ctx.beginPath();
     ctx.moveTo(originX, originY + 15);
     ctx.lineTo(hX, hY);
     ctx.strokeStyle = isExploding ? "#ff3e3e" : "rgba(0, 243, 255, 0.6)";
     ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]); // 虚线增加抽象感
+    ctx.setLineDash([5, 5]);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // 绘制末端钩子 🪝
     ctx.save();
     ctx.translate(hX, hY);
     ctx.rotate(-angle);
@@ -182,22 +216,18 @@ function draw() {
     ctx.fillText("🪝", 0, 15);
     ctx.restore();
 
-    // 爆炸特效
     if (isExploding) {
         ctx.font = "80px serif";
         ctx.fillText("💥", hX, hY);
     }
 
-    // 绘制抓取的物体
     if (currentItem) {
         currentItem.x = hX;
         currentItem.y = hY + 30;
         drawItem(currentItem);
     }
 
-    // 绘制所有地下矿物
     items.forEach(drawItem);
-
     update();
     requestAnimationFrame(draw);
 }
@@ -207,24 +237,20 @@ function drawItem(item) {
     ctx.font = `${item.r * 1.2}px serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    
-    // 增加辉光效果
     ctx.shadowBlur = 20;
     ctx.shadowColor = item.type === "gold" ? "gold" : (item.type === "bomb" ? "red" : "transparent");
-    
     let emoji = item.type === "gold" ? "💰" : (item.type === "stone" ? "🪨" : "💣");
     ctx.fillText(emoji, item.x, item.y);
     ctx.restore();
 }
 
-// 交互
 canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    if (hookState === "swing") hookState = "extend";
+    if (hookState === "swing" && !isWin) hookState = "extend";
 }, {passive: false});
 
 window.addEventListener('mousedown', () => {
-    if (hookState === "swing") hookState = "extend";
+    if (hookState === "swing" && !isWin) hookState = "extend";
 });
 
 initLevel(currentLevel);
