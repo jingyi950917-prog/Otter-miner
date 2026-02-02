@@ -36,16 +36,20 @@ const baseSpeed = 8; // 基础伸缩速度
 
 // 矿物数据
 let items = [];
+// 1. 修改初始化逻辑：明确区分金块和石头
 function initItems() {
     items = [];
-    for(let i=0; i<10; i++) {
+    for(let i=0; i<12; i++) {
         let size = Math.random() * 40 + 20;
+        let isStone = Math.random() > 0.4; // 60% 概率是石头
         items.push({
             x: Math.random() * (canvas.width - 60) + 30,
             y: Math.random() * (canvas.height - 250) + 200,
             r: size,
-            weight: size * 0.15, // 体积决定重量
-            val: Math.floor(size * 2)
+            weight: size * 0.2, // 石头通常比金子重
+            isStone: isStone,
+            // 核心逻辑：石头分数为负，金子分为正
+            val: isStone ? -Math.floor(size) : Math.floor(size * 3) 
         });
     }
 }
@@ -79,7 +83,7 @@ function update() {
 
         if (hookLen <= 40) {
             if (currentItem) {
-                score += currentItem.val;
+                score += item.val;
                 scoreEl.innerText = score;
                 currentItem = null;
             }
@@ -124,10 +128,17 @@ function draw() {
 function drawItem(item) {
     ctx.beginPath();
     ctx.arc(item.x, item.y, item.r, 0, Math.PI*2);
-    ctx.fillStyle = item.weight > 6 ? "#95a5a6" : "#f1c40f"; // 重的是石头，轻的是金子
+    // 石头用深灰色，金子用亮金色
+    ctx.fillStyle = item.isStone ? "#555555" : "#FFD700"; 
     ctx.fill();
+    
+    // 给石头加点描边，增加“坚硬”感
+    ctx.strokeStyle = item.isStone ? "#333" : "#B8860B";
+    ctx.lineWidth = 2;
+    ctx.stroke();
     ctx.closePath();
 }
+
 
 // 手机端触摸事件
 canvas.addEventListener('touchstart', (e) => {
