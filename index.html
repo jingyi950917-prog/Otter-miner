@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>深海水獭矿工 - Abstract DeepSea</title>
+    <style>
+        :root { --neon-blue: #00f3ff; --neon-gold: #ffd700; }
+        body { margin: 0; padding: 0; background: #001220; font-family: 'Segoe UI', sans-serif; touch-action: none; overflow: hidden; }
+        
+        /* 抽象精致 UI */
+        #ui { 
+            position: absolute; top: 25px; left: 25px; color: var(--neon-blue); 
+            background: rgba(0, 243, 255, 0.1); padding: 15px 25px;
+            border-radius: 15px; border: 1px solid rgba(0, 243, 255, 0.3);
+            backdrop-filter: blur(10px); pointer-events: none;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+        /* 语言切换按钮 - 唯一可点击的 UI */
+        #lang-toggle {
+            position: absolute; top: 25px; right: 25px; color: white;
+            background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 15px; border-radius: 8px; cursor: pointer; z-index: 20;
+            font-size: 14px; backdrop-filter: blur(5px);
+        }
+        .stat { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.8; }
+        .val { font-size: 24px; font-weight: bold; color: white; display: block; }
+
+        canvas { display: block; margin: 0 auto; background: radial-gradient(circle at top, #002b4d 0%, #001220 100%); }
+    </style>
+</head>
+<body>
+    <button id="lang-toggle">English / 中文</button>
+    <div id="ui">
+        <div class="stat" id="label-sector">Sector</div><span class="val" id="level">1</span>
+        <div style="height: 10px;"></div>
+        <div class="stat" id="label-credits">Credits</div><span class="val" id="score">0</span>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const levelEl = document.getElementById('level');
+const langBtn = document.getElementById('lang-toggle');
+
+// 语言字典
+const i18n = {
+    en: {
+        sector: "Sector",
+        credits: "Credits",
+        story: [
+           
+            "✨You grabbed✨",
+            "ALL THE SHINY BITS",
+            "Yet...Your score...🤔"
+        ]
+    },
+    zh: {
+        sector: "区域",
+        credits: "积分",
+        story: [
+           
+            "✨亮晶晶的✨",
+            "都被你抓走了",
+            "但是...你的得分...🤔"
+        ]
+    }
+};
+
+let currentLang = 'en';
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score = 0;
+let currentLevel = 1;
+let angle = 0;
+let direction = 1;
+let hookState = "swing"; 
+let hookLen = 60;
+let currentItem = null; 
+let isExploding = false;
+let isWin = false;
+
+const originX = canvas.width / 2;
+const originY = 80;
+let swingSpeed = 0.04;
+const baseSpeed = 10;
+let items = [];
+
+// 语言切换逻辑
+langBtn.addEventListener('click', () => {
+    currentLang = currentLang === 'en' ? 'zh' : 'en';
+    updateUILabels();
+});
+
+function updateUILabels() {
+    document.getElementById('label-sector').innerText = i18n[currentLang].sector;
+    document.getElementById('label-credits').innerText = i18n[currentLang].credits;
+}
+
+function initLevel(level) {
+    if (level >= 10) {
+        isWin = true;
+        document.getElementById('ui').style.display = 'none';
+        document.getElementById('lang-toggle').style.display = 'none';
+        return;
+    }
+    items = [];
+    hookState = "swing";
+    hookLen = 60;
+    swingSpeed = 0.035 + (level * 0.008);
+    
+    let goldCount = 4 + Math.floor(level/2);
+    let stoneCount = 3 + level;
+    let bombCount = Math.min(level, 6);
+
+    for(let i=0; i<goldCount; i++) createObj("gold");
+    for(let i=0; i<stoneCount; i++) createObj("stone");
+    for(let i=0; i<bombCount; i++) createObj("bomb");
+}
+
+function createObj(type) {
+    items.push({
+        x: Math.random() * (canvas.width - 100) + 50,
+        y: Math.random() * (canvas.height - 350) + 250,
+        r: type === "gold" ? 20 + Math.random()*20 : (type === "stone" ? 25+Math.random()*30 : 30),
+        type: type,
+        weight: type === "stone" ? 7 : (type === "gold" ? 3 : 1),
+        val: type === "gold" ? 100 : (type === "stone" ? -50 : 0)
+    });
+}
+
+function update() {
+    if (isWin) return;
+    if (!items.find(i => i.type === "gold") && !currentItem && hookState === "swing") {
+        currentLevel++;
+        levelEl.innerText = currentLevel;
+        initLevel(currentLevel);
+        return;
+    }
+
+    if (hookState === "swing") {
+        angle += swingSpeed * direction;
+        if (Math.abs(angle) > 1.4) direction *= -1;
+    } else if (hookState === "extend") {
+        hookLen += baseSpeed;
+        if (hookLen > canvas.height - 50) hookState = "retract";
+        let hX = originX + Math.sin(angle) * hookLen;
+        let hY = originY + Math.cos(angle) * hookLen;
+        for (let i = 0; i < items.length; i++) {
+            let item = items[i];
+            let dx = hX - item.x;
+            let dy = hY - item.y;
+            if (Math.sqrt(dx*dx + dy*dy) < item.r) {
+                if (item.type === "bomb") {
+                    items.splice(i, 1);
+                    isExploding = true;
+                    score = 0; 
+                    scoreEl.innerText = score;
+                    setTimeout(() => isExploding = false, 600);
+                    hookState = "retract";
+                    return;
+                }
+                currentItem = items.splice(i, 1)[0];
+                hookState = "retract";
+                break;
+            }
+        }
+    } else if (hookState === "retract") {
+        let weightFactor = currentItem ? currentItem.weight : (isExploding ? -5 : 0);
+        hookLen -= Math.max(2, baseSpeed - weightFactor);
+        if (hookLen <= 60) {
+            if (currentItem) {
+                score += currentItem.val;
+                score = Math.max(0, score);
+                scoreEl.innerText = score;
+                currentItem = null;
+            }
+            hookLen = 60;
+            hookState = "swing";
+        }
+    }
+}
+
+function drawWinScreen() {
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#001220";
+    ctx.textAlign = "left";
+    ctx.font = "18px monospace";
+    
+    // 使用对应语言的剧情文本
+    const messages = i18n[currentLang].story;
+    messages.forEach((msg, i) => {
+        ctx.fillText(msg, 50, 150 + i * 40);
+    });
+    
+    ctx.font = "80px serif";
+    ctx.textAlign = "center";
+    ctx.fillText("🦦", canvas.width/2, canvas.height/2 + 100);
+}
+
+function draw() {
+    if (isWin) {
+        drawWinScreen();
+        return;
+    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // 水纹装饰
+    ctx.strokeStyle = "rgba(0, 243, 255, 0.05)";
+    ctx.lineWidth = 2;
+    for(let i=0; i<3; i++) {
+        ctx.beginPath();
+        ctx.arc(originX, -50, 200 + i*100, 0, Math.PI*2);
+        ctx.stroke();
+    }
+    // 水獭
+    ctx.font = "60px serif";
+    ctx.textAlign = "center";
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "cyan";
+    ctx.fillText("🦦", originX, originY);
+    ctx.shadowBlur = 0;
+    // 绳索钩子
+    let hX = originX + Math.sin(angle) * hookLen;
+    let hY = originY + Math.cos(angle) * hookLen;
+    ctx.beginPath();
+    ctx.moveTo(originX, originY + 15);
+    ctx.lineTo(hX, hY);
+    ctx.strokeStyle = isExploding ? "#ff3e3e" : "rgba(0, 243, 255, 0.6)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.save();
+    ctx.translate(hX, hY);
+    ctx.rotate(-angle);
+    ctx.font = "30px serif";
+    ctx.fillText("🪝", 0, 15);
+    ctx.restore();
+    if (isExploding) {
+        ctx.font = "80px serif";
+        ctx.fillText("💥", hX, hY);
+    }
+    if (currentItem) {
+        currentItem.x = hX;
+        currentItem.y = hY + 30;
+        drawItem(currentItem);
+    }
+    items.forEach(drawItem);
+    update();
+    requestAnimationFrame(draw);
+}
+
+function drawItem(item) {
+    ctx.save();
+    ctx.font = `${item.r * 1.2}px serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = item.type === "gold" ? "gold" : (item.type === "bomb" ? "red" : "transparent");
+    let emoji = item.type === "gold" ? "💰" : (item.type === "stone" ? "🪨" : "💣");
+    ctx.fillText(emoji, item.x, item.y);
+    ctx.restore();
+}
+
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (hookState === "swing" && !isWin) hookState = "extend";
+}, {passive: false});
+
+window.addEventListener('mousedown', (e) => {
+    // 排除语言切换按钮的点击触发钩子
+    if (e.target.id !== 'lang-toggle' && hookState === "swing" && !isWin) {
+        hookState = "extend";
+    }
+});
+
+initLevel(currentLevel);
+updateUILabels();
+draw();
+</script>
+</body>
+</html>
